@@ -1,0 +1,48 @@
+name: Deploy to aws ec2
+run-name: deploy to aws ec2
+on:
+  push:
+    branches: ["01-ec2"]
+
+env:
+  AWS_REGION: "us-west-1"
+  AWS_TERRAFORM_BUCKET: "awsec2tfstate"
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    environment: development
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+
+      - name: Terraform Init
+        run: |
+          terraform init -upgrade \
+          -backend-config="bucket=${{env.AWS_TERRAFORM_BUCKET}}" \
+          -backend-config="key=terraform.tfstate" \
+          -backend-config="region=${{env.AWS_REGION}}" \
+          -backend-config="access_key=${{ secrets.AWS_ACCESS_KEY_ID }}" \
+          -backend-config="secret_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+
+      #   - name: Terraform Plan
+      #     run: terraform plan -input=false -out=ec2-iac-tfplan
+
+    #   - name: Terraform Apply
+    #     if: github.ref == 'refs/heads/01-ec2' && github.event_name == 'push'
+    #     run: terraform apply ec2-iac-tfplan
